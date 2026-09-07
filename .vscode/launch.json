@@ -1,0 +1,44 @@
+{
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Spring Boot-NeffiFondApplication<neffi-fond>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "com.neffi.fond.NeffiFondApplication",
+      "projectName": "neffi-fond",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot-NeffiFondApplication<neffi-laft>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "com.neffi.fond.NeffiFondApplication",
+      "projectName": "neffi-laft",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot-NeffiTrustApplication<neffi-fond>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "com.neffi.trust.NeffiTrustApplication",
+      "projectName": "neffi-fond",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot-NeffiFondApplication<neffi-com>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "com.neffi.fond.NeffiFondApplication",
+      "projectName": "neffi-com",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}

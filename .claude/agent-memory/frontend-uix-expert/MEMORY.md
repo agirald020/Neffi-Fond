@@ -1,0 +1,2 @@
+- [Estructura módulo Órdenes de Giro](project_og_module.md) — subcarpetas por sección funcional (bandeja, detalle, acciones, notificaciones, impresion) + ENDPOINTS_PENDIENTES.md
+- [Módulo Parametrización](project_parametrizacion_module.md) — canvas SVG BFS, CondicionBuilder recursivo, variables con fallback mock, iteración de Map vía Array.from

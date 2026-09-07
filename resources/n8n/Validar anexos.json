@@ -1,0 +1,442 @@
+{
+  "name": "Validar anexos",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "=Eres un agente de validación financiera. Tu tarea es revisar una Orden de Giro y sus anexos (facturas u otros documentos soporte), y verificar que cada detalle de la orden esté correctamente respaldado.\n\n## DOCUMENTOS QUE RECIBIRÁS\n1. **Orden de Giro**: contiene uno o varios \"Detalles de Giro\", cada uno con: número de detalle, beneficiario, destino de pago, concepto, valor, IVA y retenciones.\n2. **Anexos**: uno o más documentos (facturas, cuentas de cobro, etc.) que deben respaldar cada detalle.\n\n---\n\n## TU PROCESO DE VALIDACIÓN\n\nPara **cada detalle** de la Orden de Giro, debes:\n\n### PASO 1 — Identificar el anexo correspondiente\nBusca entre los anexos recibidos el documento que corresponde a ese detalle. La correspondencia se establece por:\n- El número de factura o referencia mencionada en el campo **Concepto** del detalle (ej: \"PAGO BAQ29464 URIBIA CINV JUNIO 2025\" → busca factura BAQ29464).\n- El beneficiario/NIT del detalle.\n\nSi **no encuentras ningún anexo** que corresponda a ese detalle, márcalo como inválido con razón: \"No se encontró anexo o factura de respaldo para este detalle.\"\n\n### PASO 2 — Validar 3 criterios del anexo encontrado\n\n**Criterio 1 — Destinatario de pago**\nVerifica que el NIT o razón social del beneficiario en el anexo coincida con el campo \"Beneficiario\" / \"Destino de pago\" de la orden de giro.\n- ✅ Válido: los datos del destinatario coinciden.\n- ❌ Inválido: el destinatario del anexo es diferente al de la orden.\n\n**Criterio 2 — Valor total**\nCompara el valor bruto de la factura/anexo con el campo \"Valor\" del detalle de la orden.\n- ✅ Válido: los valores coinciden (permite diferencias menores de $1 por redondeo).\n- ❌ Inválido: hay una diferencia significativa entre el valor de la factura y el valor del detalle.\n\n**Criterio 3 — Concepto**\nVerifica que la descripción del servicio/bien en el anexo sea coherente con el campo \"Concepto\" de la orden de giro.\n- ✅ Válido: el concepto del anexo es consistente con el de la orden.\n- ❌ Inválido: el concepto del anexo no corresponde o es inconsistente con el del detalle.\n\n---\n\n## REGLAS IMPORTANTES\n\n- Si **cualquiera** de los 3 criterios falla, el detalle es `\"valido\": false`.\n- Solo es `\"valido\": true` si los 3 criterios pasan correctamente.\n- Si un criterio no puede evaluarse por falta de información en el anexo, indícalo en la razón y márcalo como inválido.\n- Sé preciso y conciso en las razones. Máximo 2 oraciones por razón.\n- No inventes ni asumas datos que no estén explícitamente en los documentos.\n\n---\n\n## FORMATO DE RESPUESTA\n\nResponde **únicamente** con un array JSON válido. Sin texto adicional, sin explicaciones fuera del JSON, sin bloques de código markdown.\n\nEl formato exacto es:\n\n[\n  {\n    \"detalle\": 1,\n    \"nombre\": \"PAGO BAQ29464 URIBIA CINV JUNIO 2025\",\n    \"valido\": true,\n    \"razon\": \"Destinatario, valor y concepto coinciden con la factura BAQ29464 adjunta.\"\n  },\n  {\n    \"detalle\": 2,\n    \"nombre\": \"PAGO BAQ29466 URIBIA CAOM JUNIO 2025\",\n    \"valido\": false,\n    \"razon\": \"No se encontró anexo de respaldo para la factura BAQ29466.\"\n  }\n]\n\nEl campo \"nombre\" debe contener el valor del campo \"Concepto\" del detalle de la orden de giro."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2192,
+        0
+      ],
+      "id": "aa596eb8-7859-4847-8a04-fdd50eb8defa",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2128,
+        208
+      ],
+      "id": "86e28b20-7f00-4cf4-b267-bb8c35d38783",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "HGJOnz7abzPiSkYp",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://192.168.2.10:5050/api/ordenes-giro/{{ $('Start').item.json.codigo_fideicomiso }}/{{ $('Start').item.json.orden_giro }}/anexos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "1f2fc0bc-ecc1-4862-9834-35549ee65207",
+      "name": "Consultar Anexos",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3IjH5t0L2PASZ4c1",
+          "name": "Bearer Auth Ordenes de Giro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.urlDescarga }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        848,
+        0
+      ],
+      "id": "4d8cd75b-dfb6-4df6-a3df-1d4343faaa1f",
+      "name": "Descargar Anexos"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "access_token"
+            },
+            {
+              "name": "codigo_fideicomiso",
+              "type": "number"
+            },
+            {
+              "name": "orden_giro",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "0ae71d8d-ae3c-4bdc-a779-5972906d040f",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        48,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e9d08961-1bc3-49e1-aa2e-f725361957fb",
+              "name": "access_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        0
+      ],
+      "id": "7b8345e9-0cfb-422e-8730-30078b36bb91",
+      "name": "Credencial"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {
+          "includeBinary": false
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        640,
+        0
+      ],
+      "id": "da19b98c-851c-49bd-b7a9-f345e6272cc9",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "const documentos = JSON.parse($json.output);\n\nconst aprobado = documentos.every(doc => doc.valido === true);\nconst rechazados = documentos.filter(doc => doc.valido === false);\n\nlet descripcion = \"\";\n\nif (aprobado) {\n  descripcion = \"Todos los documentos son válidos y fueron aprobados.\";\n} else {\n  for (const rec of rechazados) {\n    descripcion += `Documento: ${rec.nombre}. Estado: ${rec.valido}. Razón: ${rec.razon}\\n`;\n  }\n}\n\nreturn [\n  {\n    json: {\n      aprobado,\n      descripcion\n    }\n  }\n];"
+      },
+      "id": "0bb68a51-0ab9-461b-9325-262e25df8c56",
+      "name": "Asignar Estado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "documentos",
+        "options": {
+          "includeBinaries": true
+        }
+      },
+      "id": "b0dfa521-6aff-45be-9785-29b4ef2b885c",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7051748e-9099-4cf6-9e32-a1beaaa0fbd3",
+              "name": "aprobado",
+              "value": "={{ $json.aprobado ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "057dcbe6-9947-479d-ab22-26b1c8c11da5",
+              "name": "descripcion",
+              "value": "={{ $json.descripcion ?? \"Flujo no implementado\" }}",
+              "type": "string"
+            },
+            {
+              "id": "ddf4335b-1c8f-4392-b04c-1f34abab703a",
+              "name": "numeroEncargo",
+              "value": "={{ $('Code').first().json.numeroEncargo }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2768,
+        0
+      ],
+      "id": "3b77e09b-28b3-4278-8e3b-58ac39fdd69c",
+      "name": "Resultado"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        0
+      ],
+      "id": "e9e726b4-b508-4678-b4c2-bb818c2c28d1",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer número de encargo con múltiples patrones posibles\nfunction extraerNumeroEncargo(texto) {\n  const patrones = [\n    /Numero\\s+Encargo\\s+([A-Z0-9][A-Z0-9\\-]+)/i,\n    /N[uú]mero\\s+de\\s+Encargo\\s+([A-Z0-9][A-Z0-9\\-]+)/i,\n    /Encargo\\s*N[°º]?\\s*[:\\s]+([A-Z0-9][A-Z0-9\\-]+)/i,\n    /N[°º]\\s*Encargo\\s*[:\\s]+([A-Z0-9][A-Z0-9\\-]+)/i,\n  ];\n\n  for (const patron of patrones) {\n    const match = texto.match(patron);\n    if (match) return match[1].trim();\n  }\n\n  return null;\n}\n\nconst items = $input.first().json.data;\n\nlet ordenDeGiro = '', numeroEncargo = '';\nconst anexos = [];\n\n\nfor (const item of items) {\n  const filename = (item.info?.Title || item.info?.Creator || '').toLowerCase();\n  const texto = item.text || '';\n\n  // Identificar la orden de giro por el contenido del texto\n  if (texto.toLowerCase().includes('formato orden de giro')) {\n    numeroEncargo = extraerNumeroEncargo(texto);\n    ordenDeGiro = `--- ORDEN DE GIRO ---\\n${texto}`;\n  } else {\n    const nombreAnexo = item.info?.Title || item.info?.Author || 'Anexo';\n    anexos.push(`--- ANEXO: ${nombreAnexo} ---\\n${texto}`);\n  }\n}\n\nconst prompt = `=== ORDEN DE GIRO ===\n${ordenDeGiro}\n\n=== ANEXOS ===\n${anexos.join('\\n\\n')}`;\n\nreturn [{ json: { prompt, numeroEncargo } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        0
+      ],
+      "id": "25bdc1e3-b07a-4eee-a365-5bac94b5de8f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Toma el ítem agregado y separa cada binario en su propio ítem\nconst item = $input.first();\nconst binaryData = item.binary;\n\nconst result = [];\nfor (const key of Object.keys(binaryData)) {\n  result.push({\n    json: { fieldName: key, fileName: binaryData[key].fileName },\n    binary: { data: binaryData[key] }  // siempre llamado \"data\" para el siguiente nodo\n  });\n}\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        0
+      ],
+      "id": "fe10596b-49fa-4ad7-82d5-e45ba990033d",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        0
+      ],
+      "id": "24799a53-f2fe-4bef-89f3-c872289f5f42",
+      "name": "Aggregate1"
+    }
+  ],
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ4a3g5aDdsNl9fLWp3T1FaREFycVEyVEtqcU5oZlIzeDkzbVdqelZiZDBBIn0.eyJleHAiOjE3ODA1MDMwODQsImlhdCI6MTc4MDUwMjc4NCwiYXV0aF90aW1lIjoxNzgwNDkwNjI3LCJqdGkiOiJvbnJ0YWM6ZGFjNzRlYmMtM2E5Zi0yN2ZhLTUyNjAtZTk3ZGJlNWMzNjhlIiwiaXNzIjoiaHR0cDovLzE5Mi4xNjguMi4xMDo4MDgwL3JlYWxtcy9uZWZmaUxhZnQiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiZTBhMjU5NGQtMDE0MC00YTM5LWJiNTYtNzE2NmQ2MzNmYzI2IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoibmVmZmlUcnVzdC1hcHAiLCJzaWQiOiJGdUFMWnpXUlBtQ1BFWkV4RzFRZkk1QnciLCJhY3IiOiIwIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3Q6NTA1MCIsImh0dHBzOi8vMTkyLjE2OC4yLjEwOjUwNTAiLCJodHRwOi8vbG9jYWxob3N0OjUwNTEiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIlJvbDpvZzpBcHJvYmFjaW9uTW9udG9zIiwib2ZmbGluZV9hY2Nlc3MiLCJkZWZhdWx0LXJvbGVzLW5lZmZpbGFmdCIsInVtYV9hdXRob3JpemF0aW9uIiwiUm9sOm9nOmFkbWluaXN0cmFkb3Jlc05lZ29jaW8iXX0sInJlc291cmNlX2FjY2VzcyI6eyJuZWZmaVRydXN0LWFwcCI6eyJyb2xlcyI6WyJ0cnVzdDpvZzpDb25zdWx0YVBhZ2FkYSIsInRydXN0Om9nOkNvbnN1bHRhUmVjaGF6YWRhIiwidHJ1c3Q6T0dfTml2ZWxSRUciLCJ0cnVzdDpvZzpDb25zdWx0YVN1YmRpcmVjdG9yIiwidHJ1c3Q6b2c6Q29uc3VsdGFSYWRpY2FkYSIsInJvbDp0cnVzdDpBdXRvcml6YWRvck9yZGVuZXNHaXJvIiwidHJ1c3Q6b2c6Q29uc3VsdGFQcm9ncmFtYWRhIiwidHJ1c3Q6TWVudU9yZGVuZXNHaXJvIiwidHJ1c3Q6b2c6ZmlsdHJvc0J1c3F1ZWRhIiwidHJ1c3Q6b2c6Q29uc3VsdGFWYWxpZGFjaW9uIiwidHJ1c3Q6TWVudVBhcmFtZXRyaXphY2lvbiIsInRydXN0Om9nOkNvbnN1bHRhQXV0b3JpemFjaW9uRmluYWwiLCJ0cnVzdDpvZzpDb25zdWx0YUF1dG9yaXphY2lvbk1vbnRvIiwidHJ1c3Q6b2c6Q29uc3VsdGFTaW5jcm9uaXphY2lvbiIsInRydXN0Om9nOkNvbnN1bHRhQ29uZmlybWFjaW9uIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJuYW1lIjoiWVRBRlVSIFBydWViYXMiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ5dGFmdXIiLCJnaXZlbl9uYW1lIjoiWVRBRlVSIiwiZmFtaWx5X25hbWUiOiJQcnVlYmFzIn0.Rkth2NcQ-iFHkDtwYmGDe_yoMFZw2twwSCOij8U_Vi6LytvHJlheRUaIAxWnucLyddIla-WaEMLGovyviGtNNwpHpbZfjii7W-jF2K1OtmgXXZ-4XalePNzyAYL3Jh8eb5kuPaC16eAl2qCcaxPtyqlkr6Ggcj1C3cgAMd-0v_oNvoifNEljtN53qzFYqphP7TvLX95-q-Hm-1QWR4uI1tulXw6gpSXPG99HJdVgyA87NIp949mAw-RFz5WhcY8nQEpNy84GqOwDnJ6fD813_fNjzysfWsepoDPrQ_v7CMEwibhdOc9Oe0OVG31cDZpr_hw8oCkertMoGv_26JQskw",
+          "codigo_fideicomiso": 53439,
+          "orden_giro": 217656
+        }
+      }
+    ]
+  },
+  "connections": {
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Asignar Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Anexos": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Anexos": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Credencial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credencial": {
+      "main": [
+        [
+          {
+            "node": "Consultar Anexos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Descargar Anexos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asignar Estado": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "698fca34-d501-477a-8df0-dc5582816210",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "42799117be17ff386dc96ca864c14e6a80c7ea7d8d8c136df05a8ced8ee44bab"
+  },
+  "id": "QY6O66KNT9DV6JAX",
+  "tags": []
+}

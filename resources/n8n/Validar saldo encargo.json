@@ -1,0 +1,297 @@
+{
+  "name": "Validar saldo encargo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "access_token"
+            },
+            {
+              "name": "codigo_fideicomiso",
+              "type": "number"
+            },
+            {
+              "name": "orden_giro",
+              "type": "number"
+            },
+            {
+              "name": "numero_encargo"
+            }
+          ]
+        }
+      },
+      "id": "e59e6427-b9be-4354-82c4-b50b91979e1b",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e9d08961-1bc3-49e1-aa2e-f725361957fb",
+              "name": "access_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        0
+      ],
+      "id": "3552f71c-d039-4a6a-bcc2-5498cd4a39db",
+      "name": "Credencial"
+    },
+    {
+      "parameters": {
+        "jsCode": "const montoOrdenGiro = $json.montoOrdenGiro;\nconst montoDisponible = $json.montoDisponible;\n\nvar descripcion = \"\", aprobado = false;\n\nif (montoDisponible != null) {\n  if (montoDisponible > montoOrdenGiro) {\n    aprobado = true;\n    descripcion = \"Saldo disponible para pago de orden de giro.\";\n  } else {\n    descripcion = \"El monto disponible es menor que el monto de la orden de giro.\";\n  }\n} else {\n  descripcion = \"No fué posible obtener el saldo disponible del encargo.\";\n}\n\nreturn [\n  {\n    json: {\n      aprobado,\n      descripcion\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        0
+      ],
+      "id": "93a65902-bfd2-4aa7-878c-2d0540267071",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7051748e-9099-4cf6-9e32-a1beaaa0fbd3",
+              "name": "aprobado",
+              "value": "={{ $json.aprobado ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "057dcbe6-9947-479d-ab22-26b1c8c11da5",
+              "name": "descripcion",
+              "value": "={{ $json.descripcion ?? \"Flujo no implementado\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1952,
+        0
+      ],
+      "id": "1c87658b-40f2-4080-814d-f02d4d09a885",
+      "name": "Resultado"
+    },
+    {
+      "parameters": {
+        "url": "=https://192.168.2.10:5050/api/ordenes-giro/{{ $('Start').item.json.codigo_fideicomiso }}/{{ $('Start').item.json.orden_giro }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "ef84ec1c-55b5-4f01-9374-642bb627b92c",
+      "name": "Consultar Orden",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3IjH5t0L2PASZ4c1",
+          "name": "Bearer Auth Ordenes de Giro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://192.168.2.10:8092/admonfiducia/api/v1/sifi/encargo/consulta-producto",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "numeroFondo",
+              "value": "={{ $json.numeroFondo}}"
+            },
+            {
+              "name": "numeroEncargo",
+              "value": "={{ $('Start').item.json.numero_encargo }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "0fc0898b-ee13-41e0-91f0-43e48c9b8b0c",
+      "name": "Consultar saldo encargo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fc38e043-3dc7-427c-b302-0b6a5158cd4a",
+              "name": "montoOrdenGiro",
+              "value": "={{ $('Consultar Orden').item.json.data[0].montoTotal }}",
+              "type": "number"
+            },
+            {
+              "id": "e4a40d0d-ecc8-486b-921a-5219ca159d2f",
+              "name": "montoDisponible",
+              "value": "={{ $('Consultar saldo encargo').first().json.data.p_ib_ty_ccons_spro_mt_out[0].saldoDisponible }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1424,
+        0
+      ],
+      "id": "17406565-da09-4e68-8ae3-84492c2a8f23",
+      "name": "Obtener valores"
+    },
+    {
+      "parameters": {
+        "jsCode": "const numero = $('Start').first().json.numero_encargo;\n\nconst numeroFondo = numero\n    ? parseInt(String(numero).padStart(12, '0').substring(0, 3), 10)\n    : null;\n\nreturn [\n  {\n    json: {\n      numeroFondo\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        0
+      ],
+      "id": "1ab8995d-178c-48a7-ac33-af91d987f008",
+      "name": "Code1"
+    }
+  ],
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ4a3g5aDdsNl9fLWp3T1FaREFycVEyVEtqcU5oZlIzeDkzbVdqelZiZDBBIn0.eyJleHAiOjE3ODA0Mzg3OTcsImlhdCI6MTc4MDQzODQ5NywiYXV0aF90aW1lIjoxNzgwNDM2MzEwLCJqdGkiOiJvbnJ0YWM6ZmE4ZGE5NGUtYWFkMi0wMzExLTI1OWUtYTI1YWY0YjY4MmUwIiwiaXNzIjoiaHR0cDovLzE5Mi4xNjguMi4xMDo4MDgwL3JlYWxtcy9uZWZmaUxhZnQiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiZTBhMjU5NGQtMDE0MC00YTM5LWJiNTYtNzE2NmQ2MzNmYzI2IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoibmVmZmlUcnVzdC1hcHAiLCJzaWQiOiJHZms0RWx3X3JNa3FxYmJkTkJkWEZ3SG4iLCJhY3IiOiIwIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3Q6NTA1MCIsImh0dHBzOi8vMTkyLjE2OC4yLjEwOjUwNTAiLCJodHRwOi8vbG9jYWxob3N0OjUwNTEiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIlJvbDpvZzpBcHJvYmFjaW9uTW9udG9zIiwib2ZmbGluZV9hY2Nlc3MiLCJkZWZhdWx0LXJvbGVzLW5lZmZpbGFmdCIsInVtYV9hdXRob3JpemF0aW9uIiwiUm9sOm9nOmFkbWluaXN0cmFkb3Jlc05lZ29jaW8iXX0sInJlc291cmNlX2FjY2VzcyI6eyJuZWZmaVRydXN0LWFwcCI6eyJyb2xlcyI6WyJ0cnVzdDpvZzpDb25zdWx0YVBhZ2FkYSIsInRydXN0Om9nOkNvbnN1bHRhUmVjaGF6YWRhIiwidHJ1c3Q6T0dfTml2ZWxSRUciLCJ0cnVzdDpvZzpDb25zdWx0YVN1YmRpcmVjdG9yIiwidHJ1c3Q6b2c6Q29uc3VsdGFSYWRpY2FkYSIsInJvbDp0cnVzdDpBdXRvcml6YWRvck9yZGVuZXNHaXJvIiwidHJ1c3Q6b2c6Q29uc3VsdGFQcm9ncmFtYWRhIiwidHJ1c3Q6TWVudU9yZGVuZXNHaXJvIiwidHJ1c3Q6b2c6ZmlsdHJvc0J1c3F1ZWRhIiwidHJ1c3Q6b2c6Q29uc3VsdGFWYWxpZGFjaW9uIiwidHJ1c3Q6TWVudVBhcmFtZXRyaXphY2lvbiIsInRydXN0Om9nOkNvbnN1bHRhQXV0b3JpemFjaW9uRmluYWwiLCJ0cnVzdDpvZzpDb25zdWx0YUF1dG9yaXphY2lvbk1vbnRvIiwidHJ1c3Q6b2c6Q29uc3VsdGFTaW5jcm9uaXphY2lvbiIsInRydXN0Om9nOkNvbnN1bHRhQ29uZmlybWFjaW9uIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJuYW1lIjoiWVRBRlVSIFBydWViYXMiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJ5dGFmdXIiLCJnaXZlbl9uYW1lIjoiWVRBRlVSIiwiZmFtaWx5X25hbWUiOiJQcnVlYmFzIn0.bHDAGx5C7_MQ4KF-bixEyhySA_ufQumael5Tb9aNvXYdqNwbMia9rm9WWWtygP1-6c6V66rHINUO76nRVDifdQ2Pvn80ZqVjJkZ9QWwHMCuhRhCkMLKaJNHBdM73PXBqHkMMIelel4K6UNeWHErNw9QZq5Linw6C_gYS2t_WOHvbVLQqYfpZnR1w87aX8z66O6oZ4iaHKVolKOnBvybNMOh3pfZh2xdrsqdPCMpD2O11nZUo5yG52Q9tsjYJEPt6JMT69nZdp17AyUlJrUr6zOJjm3q8BRSbl3UdihhAmNJYKd-4KQuuPFUDQcmQEF-Un3DZ_i_1bfPN-hxVvzA2Jw",
+          "codigo_fideicomiso": 53439,
+          "orden_giro": 217656,
+          "numero_encargo": "001500006303"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Credencial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credencial": {
+      "main": [
+        [
+          {
+            "node": "Consultar Orden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Orden": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar saldo encargo": {
+      "main": [
+        [
+          {
+            "node": "Obtener valores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener valores": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Consultar saldo encargo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f75039af-4a3a-4d66-812c-861f822a5abb",
+  "meta": {
+    "instanceId": "42799117be17ff386dc96ca864c14e6a80c7ea7d8d8c136df05a8ced8ee44bab"
+  },
+  "id": "cOnsonohPdKoc5jL",
+  "tags": []
+}

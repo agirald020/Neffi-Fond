@@ -1,0 +1,303 @@
+{
+  "name": "Validar vinculacion",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://192.168.2.10:5050/api/ordenes-giro/{{ $('Start').item.json.codigo_fideicomiso }}/{{ $('Start').item.json.orden_giro }}/lineas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        0
+      ],
+      "id": "9a49426c-c28a-431c-ad83-10587b21bad9",
+      "name": "Consultar Terceros",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3IjH5t0L2PASZ4c1",
+          "name": "Bearer Auth Ordenes de Giro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://192.168.2.10:5010/api/laft/validate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\t\"p_IDENTIFICACION\": \"{{ $json.nitTerceroPago }}\",\n\t\"p_NOMBRE_1\": \"\",\n\t\"p_NOMBRE_2\": \"\",\n\t\"p_APELLIDO_1\": \"\",\n\t\"p_APELLIDO_2\": \"\"\n}",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        928,
+        0
+      ],
+      "id": "980c718b-c0e0-40d1-98fe-5f77014b5d4f",
+      "name": "Consultar Vinculacion",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3IjH5t0L2PASZ4c1",
+          "name": "Bearer Auth Ordenes de Giro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consultar Vinculacion - puede venir vacío o con datos\nconst raw = $input.first()?.json ?? [];\nconst lista = Array.isArray(raw) ? raw : [raw];\n\nconst rechazados = lista.filter(persona => persona.permiteIdentificacion === \"NO\");\n\n// Split Out3 - nit\nconst nitTerceroPago = $('Split Out').first().json.nitTerceroPago;\n\nreturn {\n  json: {\n    nitTerceroPago,\n    permiteVinculacion: rechazados.length === 0 ? \"SI\" : \"NO\"\n  }\n};"
+      },
+      "id": "045cb1d5-0327-4972-8f91-49e4159f4a4b",
+      "name": "Validar Vinculacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "access_token"
+            },
+            {
+              "name": "codigo_fideicomiso",
+              "type": "number"
+            },
+            {
+              "name": "orden_giro",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "bcd0c2de-bd92-42b7-a912-4433307b6e17",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e9d08961-1bc3-49e1-aa2e-f725361957fb",
+              "name": "access_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8ca40abf-0225-4df9-b368-acc396d0eb8a",
+      "name": "Credencial"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {
+          "includeBinary": false
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "id": "a84f5341-5b29-4921-ac0f-c013bb0d3714",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "terceros",
+        "include": "specifiedFields",
+        "fieldsToInclude": "nitTerceroPago, permiteVinculacion",
+        "options": {}
+      },
+      "id": "cf382f49-fd3a-4937-aeb9-2350b61791d6",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const terceros = $json.terceros || [];\nconst aprobado = terceros.every(ter => ter.permiteVinculacion === \"SI\");\nconst rechazados = terceros.filter(ter => ter.permiteVinculacion === \"NO\");\n\nvar descripcion = \"\";\n\nif (aprobado) {\n  descripcion = \"Todos los terceros permiten vinculación.\";\n} else {\n  for (var rec of rechazados) {\n    descripcion += `Documento: ${rec.nitTerceroPago}. No permite vinculación \\n`;\n  }\n}\n\nreturn [\n  {\n    json: {\n      aprobado,\n      descripcion\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        0
+      ],
+      "id": "36b1d4be-383a-4b99-bd7a-8d3451457560",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7051748e-9099-4cf6-9e32-a1beaaa0fbd3",
+              "name": "aprobado",
+              "value": "={{ $json.aprobado ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "057dcbe6-9947-479d-ab22-26b1c8c11da5",
+              "name": "descripcion",
+              "value": "={{ $json.descripcion ?? \"Flujo no implementado\" }}",
+              "type": "string"
+            },
+            {
+              "id": "fc245b47-ed05-4bf3-bba0-d1765511e87b",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1872,
+        0
+      ],
+      "id": "6d912a12-443d-4d8b-8458-77023be29669",
+      "name": "Resultado"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Consultar Terceros": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Vinculacion": {
+      "main": [
+        [
+          {
+            "node": "Validar Vinculacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Vinculacion": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Credencial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credencial": {
+      "main": [
+        [
+          {
+            "node": "Consultar Terceros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Consultar Vinculacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e0dd9588-9697-4308-a891-69379eedda79",
+  "meta": {
+    "instanceId": "42799117be17ff386dc96ca864c14e6a80c7ea7d8d8c136df05a8ced8ee44bab"
+  },
+  "id": "wKnH14OT1hYWEqUL",
+  "tags": []
+}

@@ -1,0 +1,9 @@
+node_modules
+.git
+.vscode
+attached_assets
+backend/target
+client/node_modules
+client/dist
+npm-debug.log*
+*.local

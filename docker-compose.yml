@@ -1,0 +1,47 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: 208202859881.dkr.ecr.us-east-2.amazonaws.com/neffitrust-back:latest
+    container_name: neffitrust-backend
+    environment:
+      TZ: America/Bogota
+      SERVER_PORT: 8093
+      KEYCLOAK_URL: http://192.168.2.10:8080
+      KEYCLOAK_REALM: neffiLaft
+      KEYCLOAK_CLIENT_ID: neffiTrust-app
+      DB_HOST: 192.168.2.10
+      DB_PORT: 5432
+      DB_NAME: neffitrust
+      DB_USERNAME: neffitrust
+      DB_PASSWORD: Temporal01
+      AUTH_BYPASS: "false"
+      EXTERNAL_API_BASE_URL: http://172.25.8.43:8000/admonfiducia/api/v1
+      EXTERNAL_API_KEY: X-Gravitee-Api-Key
+      EXTERNAL_API_KEY_VALUE: 5f27c830-aad5-43c7-9f6f-ac2f59ad7572
+      NEFFI_LAFT_URL: http://192.168.2.10:5010
+      N8N_WEBHOOK_URL: https://sharp-rightly-dove.ngrok-free.app/webhook
+    ports:
+      - "8093:8093"
+    restart: unless-stopped
+    networks:
+      - neffi-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    image: 208202859881.dkr.ecr.us-east-2.amazonaws.com/neffitrust-front:latest
+    container_name: neffitrust-frontend
+    environment:
+      TZ: America/Bogota
+    ports:
+      - "5051:5051"
+    restart: unless-stopped
+    networks:
+      - neffi-network
+
+networks:
+  neffi-network:
+    driver: bridge

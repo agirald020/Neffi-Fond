@@ -1,0 +1,1421 @@
+{
+  "name": "Principal",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "validar-documentos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d62d0816-299e-407d-bc5b-37c3e6648349",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        160
+      ],
+      "webhookId": "c449bb82-4b57-4463-9b0f-5a13dcb74d50"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"nit\": \"{{ $('Webhook').first().json.body.nit }}\",\n  \"fecha_validacion\": \"{{ new Date().toISOString() }}\",\n  \"total_documentos\": {{ $json.documentos.length }},\n  \"permitidos\": {{ $json.documentos.filter(d => d.estado === 'Permitido').length }},\n  \"rechazados\": {{ $json.documentos.filter(d => d.estado === 'Rechazado').length }},\n  \"documentos\": {{ JSON.stringify($json.documentos) }}\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ae457d98-8d0b-4f1b-b673-3adaead08133",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1712,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analiza el documento adjunto e identifica qué tipo de documento es.\n\nDetermina si corresponde a alguno de los tipos válidos para aprobación y responde con el JSON indicado.",
+        "options": {
+          "systemMessage": "Eres un agente de validación documental para órdenes de giro.\nTu única tarea es clasificar si un documento escaneado corresponde a un tipo válido para aprobación.\n\nTipos de documentos VÁLIDOS (estado: Permitido):\n- Tiquete aéreo (boarding pass, itinerario de vuelo, tiquete de avión)\n- Recibo del agua (factura de acueducto, servicio de agua potable, alcantarillado)\n\nTipos de documentos NO VÁLIDOS (estado: Rechazado):\n- Recibo de servicios públicos de luz, gas, teléfono o internet\n- Facturas de tiendas, supermercados o comercios\n- Cualquier otro documento que no esté en la lista de válidos\n\nReglas estrictas:\n1. Analiza visualmente el documento completo.\n2. Identifica el tipo de documento basándote en su contenido, logos, encabezados y estructura.\n3. Responde ÚNICAMENTE con este JSON sin texto adicional ni bloques de código markdown:\n   {\"encontrado\": true, \"razon\": \"descripción breve de por qué es válido\"}\n   o\n   {\"encontrado\": false, \"razon\": \"descripción breve de por qué no es válido\"}\n4. Si el documento es ilegible, está corrupto o no puedes identificarlo:\n   {\"encontrado\": false, \"razon\": \"Documento ilegible o no identificable\"}\n5. No asumas ni inventes. Clasifica solo con lo que puedas ver claramente."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        928,
+        160
+      ],
+      "id": "b97f4c18-56cf-4f24-a1d7-1d36ac652478",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.documentos",
+        "options": {
+          "includeBinary": false
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        464,
+        160
+      ],
+      "id": "c7e1660f-2422-4c61-a9b7-b885d0cce736",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const base64 = item.json.documento_base64;\n  const nit = $('Webhook').first().json.body.nit;\n\n  const mimeType = item.json.mime_type || 'image/jpeg';\n  let extension = mimeType.split('/')[1];\n  if (extension === 'jpeg') extension = 'jpg';\n\n  results.push({\n    json: {\n      nit: nit\n    },\n    binary: {\n      documento: {\n        data: base64,\n        mimeType: mimeType,\n        fileName: `documento.${extension}`\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "4a85188a-ab61-43e0-bb54-c32cf5c74981",
+      "name": "Preparar Binario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const parsed = JSON.parse($input.item.json.output);\n\nconst encontrado = parsed.encontrado;\nconst razon = parsed.razon;\n\nreturn {\n  json: {\n    estado: encontrado ? 'Permitido' : 'Rechazado',\n    razon: razon\n  }\n};"
+      },
+      "id": "e8cd156a-4a47-4788-b496-a1e6e604f748",
+      "name": "Asignar Estado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "documentos",
+        "include": "specifiedFields",
+        "fieldsToInclude": " estado, razon",
+        "options": {}
+      },
+      "id": "48c37a0c-eb58-4f8e-aded-53f428117ac8",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "id": "3a9d77cb-7fe0-44b0-a45a-8c6acf09a849",
+      "name": "Gemini 2.0 Flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        592,
+        400
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "13G1hi7a9jf3xG2M",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        416
+      ],
+      "id": "91b1533d-b8a6-419a-826d-abc68c6e8d6b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "HGJOnz7abzPiSkYp",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "**Validar documentos**",
+        "height": 656,
+        "width": 2048
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "11595515-35e3-485a-8c25-a961960bda39",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "validar-anexos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5220ecdc-a413-47dc-8166-5cc5970ec0ce",
+      "name": "Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        256,
+        1024
+      ],
+      "webhookId": "c449bb82-4b57-4463-9b0f-5a13dcb74d50"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"fecha_validacion\": \"{{ new Date().toISOString() }}\",\n  \"total_documentos\": {{ $json.documentos.length }},\n  \"permitidos\": {{ $json.documentos.filter(d => d.estado === 'Permitido').length }},\n  \"rechazados\": {{ $json.documentos.filter(d => d.estado === 'Rechazado').length }},\n  \"documentos\": {{ JSON.stringify($json.documentos) }}\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "6410e78c-0ff5-4e91-8cab-4c320be709f2",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1792,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Analiza el documento adjunto e identifica qué tipo de documento es.\n\nDetermina si corresponde a alguno de los tipos válidos para aprobación y responde con el JSON indicado.",
+        "options": {
+          "systemMessage": "Eres un agente de validación documental para órdenes de giro.\nTu única tarea es clasificar si un documento escaneado corresponde a un tipo válido para aprobación.\n\nTipos de documentos VÁLIDOS (estado: Permitido):\n- Tiquete aéreo (boarding pass, itinerario de vuelo, tiquete de avión)\n- Recibo del agua (factura de acueducto, servicio de agua potable, alcantarillado)\n\nTipos de documentos NO VÁLIDOS (estado: Rechazado):\n- Recibo de servicios públicos de luz, gas, teléfono o internet\n- Facturas de tiendas, supermercados o comercios\n- Cualquier otro documento que no esté en la lista de válidos\n\nReglas estrictas:\n1. Analiza visualmente el documento completo.\n2. Identifica el tipo de documento basándote en su contenido, logos, encabezados y estructura.\n3. Responde ÚNICAMENTE con este JSON sin texto adicional ni bloques de código markdown:\n   {\"valido\": true, \"tipo_documento\": \"nombre del tipo identificado\", \"razon\": \"descripción breve de por qué es válido\"}\n   o\n   {\"valido\": false, \"tipo_documento\": \"nombre del tipo identificado\", \"razon\": \"descripción breve de por qué no es válido\"}\n4. Si el documento es ilegible, está corrupto o no puedes identificarlo:\n   {\"valido\": false, \"tipo_documento\": \"Desconocido\", \"razon\": \"Documento ilegible o no identificable\"}\n5. No asumas ni inventes. Clasifica solo con lo que puedas ver claramente."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1008,
+        1024
+      ],
+      "id": "7e7fbf81-fcc7-4cba-acec-b3fef8393e85",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.documentos",
+        "options": {
+          "includeBinary": false
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        544,
+        1024
+      ],
+      "id": "62fecc3d-5490-4b9e-8a39-f1aed63dca2d",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const base64 = item.json.documento_base64;\n\n  const mimeType = item.json.mime_type || 'image/jpeg';\n  let extension = mimeType.split('/')[1];\n  if (extension === 'jpeg') extension = 'jpg';\n\n  results.push({\n    binary: {\n      documento: {\n        data: base64,\n        mimeType: mimeType,\n        fileName: `documento.${extension}`\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "7028a5d4-8ecc-4ad0-839f-d621d5ceb49a",
+      "name": "Preparar Binario1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const parsed = JSON.parse($input.item.json.output);\n\nconst valido = parsed.valido;\nconst tipo = parsed.tipo_documento;\nconst razon = parsed.razon;\n\nreturn {\n  json: {\n    estado: valido ? \"Permitido\" : \"Rechazado\",\n    tipo_documento: tipo,\n    razon: razon\n  }\n};"
+      },
+      "id": "98cff952-4ce2-4acc-af8b-af2a1f5dbe3f",
+      "name": "Asignar Estado1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "documentos",
+        "include": "specifiedFields",
+        "fieldsToInclude": " estado, tipo_documento, razon",
+        "options": {}
+      },
+      "id": "303d298d-b76a-437f-bb32-9e4d01964bb5",
+      "name": "Aggregate1",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "id": "998d005c-2f4f-498f-8336-bc9e5067ef19",
+      "name": "Gemini 2.0 Flash1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        464,
+        1264
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "13G1hi7a9jf3xG2M",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        1280
+      ],
+      "id": "9b37dcea-f927-4ca2-9190-e7c53447cbd9",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "HGJOnz7abzPiSkYp",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "**Validar Anexos**",
+        "height": 656,
+        "width": 2064,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        864
+      ],
+      "typeVersion": 1,
+      "id": "41813c86-38ef-4d23-820d-ee614ecaccef",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "769326e5-6ed9-47e0-821a-a01a8825c529",
+      "name": "Respond to Webhook2",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2144,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "84530acb-d0d7-4f84-a73d-ae1089e077d0",
+              "leftValue": "={{ $json.aprobado }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2448,
+        2368
+      ],
+      "id": "37a946e9-7688-48f1-8bc3-c4312d4d395c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.2.10:8080/realms/neffiLaft/protocol/openid-connect/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "password"
+            },
+            {
+              "name": "client_id",
+              "value": "neffiTrust-app"
+            },
+            {
+              "name": "username",
+              "value": "agenteia"
+            },
+            {
+              "name": "password",
+              "value": "Temporal01*"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32,
+        1968
+      ],
+      "id": "123b77a3-dab5-4c0b-a9d9-819cc7bdef1b",
+      "name": "Autenticacion"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "45f34ffe-0a9d-4ab3-957f-1c2e92431f84",
+              "name": "access_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        192,
+        1968
+      ],
+      "id": "6a3c22a8-b977-4e3b-b5ac-a21f772f9466",
+      "name": "Credencial"
+    },
+    {
+      "parameters": {
+        "url": "=https://192.168.2.10:5050/api/ordenes-giro/{{ $('Webhook4').item.json.body.codigo_fideicomiso }}/{{ $('Webhook4').item.json.body.orden_giro }}/flujo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -112,
+        2304
+      ],
+      "id": "6ecc7850-081c-4b8a-8aa9-612b132893fd",
+      "name": "Consultar Flujo",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3IjH5t0L2PASZ4c1",
+          "name": "Bearer Auth Ordenes de Giro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://192.168.2.10:5050/api/ordenes-giro/{{ $('Webhook4').first().json.body.codigo_fideicomiso }}/{{ $('Webhook4').first().json.body.orden_giro }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        1968
+      ],
+      "id": "b1a3f061-23b6-4652-9002-3c6824efdd24",
+      "name": "Consultar Orden",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3IjH5t0L2PASZ4c1",
+          "name": "Bearer Auth Ordenes de Giro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const estados = $('Consultar Flujo').first().json.data;\nconst estadoActual = $('Consultar Orden').first().json.data[0].estado;\nconst indexActual = estados.indexOf(estadoActual);\nconst siguienteEstado = estados[indexActual + 1] || null;\n\nreturn [{\n  json: {\n    estado_actual: estadoActual,\n    siguiente_estado: siguienteEstado,\n    es_ultimo: siguienteEstado === null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        2304
+      ],
+      "id": "77f8b2a6-9d07-48a7-84ee-e9c5da09f024",
+      "name": "Evaluar Estado"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.estado_actual }}",
+                    "rightValue": "REG",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "18b11d4b-14f8-43ad-9003-2beabaa35a2b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "REG"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        304,
+        2304
+      ],
+      "id": "6b4abc8f-ae8c-418b-8bce-ca709a25bbef",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"fecha_validacion\": \"{{ new Date().toISOString() }}\",\n  \"total_documentos\": {{ $('Code').item.json.documentos.length }},\n  \"permitidos\": {{ $('Code').item.json.documentos.filter(d => d.estado === 'Permitido').length }},\n  \"rechazados\": {{ $('Code').item.json.documentos.filter(d => d.estado === 'Rechazado').length }},\n  \"documentos\": {{ JSON.stringify($('Code').item.json.documentos) }},\n  \"aprobado\": {{ $('Code').item.json.todosPermitidos }}\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "f5037dee-328d-40e6-bb81-2bcb1c761b84",
+      "name": "Respond to Webhook3",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2384,
+        2736
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  fecha_validacion: new Date().toISOString(),\n  estado: $('Resultado').first().json.estado,\n  aprobado: $('Resultado').first().json.aprobado,\n  descripcion: $('Resultado').first().json.descripcion\n}) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "7c234dff-fac4-4e6f-95a4-010a22a750dc",
+      "name": "Respond to Webhook4",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2816,
+        2448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const todos = $('Aggregate7').all().map(i => i.json.data).flat();\n\nreturn [{\n  json: {\n    fecha_validacion: new Date().toISOString(),\n    flujo: todos\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        2736
+      ],
+      "id": "6e00ce8e-9b49-4ffa-a5c9-afe726032087",
+      "name": "Preparar respuesta"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        2736
+      ],
+      "id": "41ef77da-8ac8-49d0-b5db-3ce8b0e8bc2d",
+      "name": "Aggregate7"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "QY6O66KNT9DV6JAX",
+          "mode": "list",
+          "cachedResultName": "Validar anexos"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "orden_giro": "={{ $('Webhook4').item.json.body.orden_giro }}",
+            "codigo_fideicomiso": "={{ $('Webhook4').item.json.body.codigo_fideicomiso }}",
+            "access_token": "={{ $('Credencial').item.json.access_token }}"
+          },
+          "matchingColumns": [
+            "body_codigo_fideicomiso",
+            "body_orden_giro",
+            "estado_actual"
+          ],
+          "schema": [
+            {
+              "id": "access_token",
+              "displayName": "access_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "codigo_fideicomiso",
+              "displayName": "codigo_fideicomiso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "orden_giro",
+              "displayName": "orden_giro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        2048
+      ],
+      "name": "Call Validar anexos",
+      "id": "7420c1fc-4a06-43f4-b9b9-0edcfb336b4c"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "wKnH14OT1hYWEqUL",
+          "mode": "list",
+          "cachedResultName": "Validar vinculacion"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "orden_giro": "={{ $('Webhook4').item.json.body.orden_giro }}",
+            "codigo_fideicomiso": "={{ $('Webhook4').item.json.body.codigo_fideicomiso }}",
+            "access_token": "={{ $('Credencial').item.json.access_token }}"
+          },
+          "matchingColumns": [
+            "body_codigo_fideicomiso",
+            "body_orden_giro",
+            "estado_actual"
+          ],
+          "schema": [
+            {
+              "id": "access_token",
+              "displayName": "access_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "codigo_fideicomiso",
+              "displayName": "codigo_fideicomiso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "orden_giro",
+              "displayName": "orden_giro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        2240
+      ],
+      "name": "Call Validar vinculacion",
+      "id": "daea1158-98b5-41d4-9766-20bd10a53641"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://192.168.2.10:5050/api/ordenes-giro/{{ $('Webhook4').first().json.body.codigo_fideicomiso }}/{{ $('Webhook4').first().json.body.orden_giro }}/ejecutar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n    accion: $('Resultado').first().json.accion,\n    observacion: $('Resultado').first().json.descripcion\n}) }}",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2816,
+        2080
+      ],
+      "id": "57774d0c-b45c-4531-b56e-264bb4f5a15b",
+      "name": "Autorizar",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3IjH5t0L2PASZ4c1",
+          "name": "Bearer Auth Ordenes de Giro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1424,
+        2224
+      ],
+      "id": "980368c7-e70d-4b81-b977-10b8fe48d8c8",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const nombres = ['Validar Anexos', 'Validar Vinculacion', 'Validar saldo encargo'];\n\nconst resultados = items.map((item, index) => {\n  return {\n    subworkflow: nombres[index],\n    aprobado: item.json.aprobado,\n    descripcion: item.json.descripcion\n  };\n});\n\nconst aprobado = items[0].json.aprobado && items[2].json.aprobado;\nconst accion = aprobado ? !items[1].json.aprobado ? 'LISTAS' : 'APROBAR' : null;\n\nreturn [\n  {\n    json: {\n      estado: $('Switch').first().json.estado_actual,\n      aprobado: aprobado,\n      descripcion: resultados,\n      accion: accion\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        2240
+      ],
+      "id": "ad1f9597-1fd8-4ea9-bbc5-b692f19c924f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      estado: $('Switch').first().json.estado_actual,\n      aprobado: false,\n      descripcion: \"Flujo no implementado\",\n      accion: null\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        2704
+      ],
+      "id": "8891f38c-ed05-45e2-aace-cd02a3f1e89d",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3485bfb6-fbb3-468c-ac36-ddd213925d48",
+              "name": "estado",
+              "value": "={{ $json.estado ?? $('Switch').first().json.estado_actual }}",
+              "type": "string"
+            },
+            {
+              "id": "7051748e-9099-4cf6-9e32-a1beaaa0fbd3",
+              "name": "aprobado",
+              "value": "={{ $json.aprobado ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "057dcbe6-9947-479d-ab22-26b1c8c11da5",
+              "name": "descripcion",
+              "value": "={{ $json.descripcion ?? \"Flujo no implementado\" }}",
+              "type": "string"
+            },
+            {
+              "id": "4067208a-1b2e-4f36-9534-91e91d0aaafa",
+              "name": "accion",
+              "value": "={{ $json.accion }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2160,
+        2368
+      ],
+      "id": "d8a1b2c5-9903-4c9d-8b57-b22856e05b75",
+      "name": "Resultado"
+    },
+    {
+      "parameters": {
+        "jsCode": "const descripcionTexto = $json.descripcion\n  .map(d =>\n    `${d.subworkflow} [${d.aprobado ? 'Aprobado' : 'Rechazado'}]: ${d.descripcion}`\n  )\n  .join('\\n');\n\nreturn [\n  {\n    json: {\n      estado: $json.estado,\n      aprobado: $json.aprobado,\n      descripcion: `[${descripcionTexto}]`,\n      accion: $json.accion\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        2240
+      ],
+      "id": "295ae2ae-1d18-4018-ae8a-dda529b70f6c",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "cOnsonohPdKoc5jL",
+          "mode": "list",
+          "cachedResultName": "Validar saldo encargo"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "codigo_fideicomiso": "={{ $('Webhook4').item.json.body.codigo_fideicomiso }}",
+            "orden_giro": "={{ $('Webhook4').item.json.body.orden_giro }}",
+            "numero_encargo": "={{ $('Resultado Anexos').first().json.numeroEncargo }}",
+            "access_token": "={{ $('Credencial').item.json.access_token }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "access_token",
+              "displayName": "access_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "codigo_fideicomiso",
+              "displayName": "codigo_fideicomiso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "orden_giro",
+              "displayName": "orden_giro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "numero_encargo",
+              "displayName": "numero_encargo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        2448
+      ],
+      "id": "ff44b6b4-19d9-436a-93b8-290701527503",
+      "name": "Call Validar saldo encargo"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "validar-orden-giro",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c0ed431f-637f-4033-a104-4954a0a973c3",
+      "name": "Webhook4",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        1968
+      ],
+      "webhookId": "c449bb82-4b57-4463-9b0f-5a13dcb74d50"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0a00fa0-d0cb-4ccb-ad4d-cb52672af032",
+              "name": "aprobado",
+              "value": "={{ $json.aprobado }}",
+              "type": "boolean"
+            },
+            {
+              "id": "796fa75a-d7e0-4fab-a850-57e80bd357a9",
+              "name": "descripcion",
+              "value": "={{ $json.descripcion }}",
+              "type": "string"
+            },
+            {
+              "id": "d1f8c66c-fec4-492f-815a-dc5076775815",
+              "name": "numeroEncargo",
+              "value": "={{ $json.numeroEncargo }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1136,
+        2048
+      ],
+      "id": "17e46209-be46-4224-956f-44e60817efeb",
+      "name": "Resultado Anexos"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Asignar Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Preparar Binario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Binario": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asignar Estado": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Asignar Estado1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Preparar Binario1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Binario1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asignar Estado1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Autorizar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticacion": {
+      "main": [
+        [
+          {
+            "node": "Credencial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credencial": {
+      "main": [
+        [
+          {
+            "node": "Consultar Orden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Flujo": {
+      "main": [
+        [
+          {
+            "node": "Evaluar Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Orden": {
+      "main": [
+        [
+          {
+            "node": "Consultar Flujo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar Estado": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Call Validar anexos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call Validar vinculacion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call Validar saldo encargo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Validar anexos": {
+      "main": [
+        [
+          {
+            "node": "Resultado Anexos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Validar vinculacion": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Autorizar": {
+      "main": [
+        [
+          {
+            "node": "Consultar Orden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Validar saldo encargo": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Webhook4": {
+      "main": [
+        [
+          {
+            "node": "Autenticacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado Anexos": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "13a4f342-e82d-4d4d-975e-03ef2a6d84e8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "42799117be17ff386dc96ca864c14e6a80c7ea7d8d8c136df05a8ced8ee44bab"
+  },
+  "id": "29iopv9abRFXV1BU",
+  "tags": []
+}

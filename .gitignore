@@ -1,0 +1,11 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+/backend/target
+.vscode/settings.json
+# Environment variables (no subir a git)
+.env
+.env.local
