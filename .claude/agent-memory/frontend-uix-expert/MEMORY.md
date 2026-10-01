@@ -1,2 +1,4 @@
 - [Estructura módulo Órdenes de Giro](project_og_module.md) — subcarpetas por sección funcional (bandeja, detalle, acciones, notificaciones, impresion) + ENDPOINTS_PENDIENTES.md
 - [Módulo Parametrización](project_parametrizacion_module.md) — canvas SVG BFS, CondicionBuilder recursivo, variables con fallback mock, iteración de Map vía Array.from
+- [Transacciones Internas (plantilla maestro-detalle)](project_transacciones_internas_module.md) — panelMode store, SweetAlert2 wrapper, menú con secciones, paginado client-side
+- [Gotchas frontend](project_frontend_gotchas.md) — use-toast alias real, rojo de marca vs --primary azul, 46 errores tsc preexistentes, Alert+svg

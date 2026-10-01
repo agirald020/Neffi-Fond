@@ -20,6 +20,7 @@ services:
       EXTERNAL_API_BASE_URL: http://172.25.8.43:8000/admonfiducia/api/v1
       EXTERNAL_API_KEY: X-Gravitee-Api-Key
       EXTERNAL_API_KEY_VALUE: 5f27c830-aad5-43c7-9f6f-ac2f59ad7572
+      ADMONFONDOS_API_BASE_URL: http://192.168.2.10:8098/admonfondos/api/v1
       NEFFI_LAFT_URL: http://192.168.2.10:5010
       N8N_WEBHOOK_URL: https://sharp-rightly-dove.ngrok-free.app/webhook
     ports:

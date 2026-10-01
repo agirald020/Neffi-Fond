@@ -192,8 +192,39 @@ REG (Registrado)
    ├── /             ──► SPA React (try_files)
    └── /api/*        ──► [Spring Boot :8093]
                               │
-                         [PostgreSQL]
+                              ├──► [PostgreSQL]
+                              └──► [AdmonFondos-Api]  (solo desde el backend)
 ```
+
+### Politica de integracion con AdmonFondos-Api (OBLIGATORIA)
+
+AdmonFondos-Api es el API de gestion de Fondos. La mayoria de los modulos de Neffi-Fond dependen de el,
+pero **el frontend NUNCA lo consume directamente**. Todo acceso pasa por el backend de Neffi-Fond (patron BFF).
+
+- **Swagger (pruebas)**: http://192.168.2.10:8098/admonfondos/api/v1/swagger-ui/index.html
+- **Base URL (pruebas)**: `http://192.168.2.10:8098/admonfondos/api/v1`
+
+**Reglas:**
+
+1. El frontend solo llama endpoints `/api/*` del backend de Neffi-Fond, a traves del wrapper `queryClient.ts`.
+   Prohibido: URLs, hosts, puertos, API keys o rutas de AdmonFondos-Api en `client/` (codigo, `.env` de Vite, constantes).
+2. El backend expone un endpoint propio por cada necesidad funcional del front. No crear un "proxy generico"
+   que reenvie rutas arbitrarias a AdmonFondos-Api.
+3. La llamada a AdmonFondos-Api vive en la **capa de servicio** (nunca en el controller), con `RestClient`,
+   siguiendo el patron existente de `SucursalesService`.
+4. La URL base y credenciales se leen de configuracion (`application.yml` + variables de entorno), nunca hardcodeadas.
+5. Las respuestas de AdmonFondos-Api se mapean a **DTOs propios** de Neffi-Fond y se devuelven envueltas en
+   `BaseApiResponse`. El contrato del front no debe cambiar si cambia AdmonFondos-Api.
+6. Errores del API externo se traducen en el backend (p. ej. `502 BAD_GATEWAY` con mensaje claro) y llegan al
+   front con el formato de error estandar `{ error, status }`. No propagar trazas ni payloads crudos del API externo.
+7. Validaciones de negocio y autorizacion (roles del JWT) se aplican en el backend **antes** de invocar AdmonFondos-Api.
+
+**Motivo:** AdmonFondos-Api esta en la red interna (no accesible desde el navegador del usuario), requiere
+credenciales que no deben exponerse en el cliente, y centralizar la integracion en el backend permite
+controlar seguridad, auditoria, manejo de errores y desacoplar el front de cambios en ese API.
+
+> Nota: `EXTERNAL_API_*` apunta a **AdmonFiducia** (sucursales, subtipos), que es un API distinto.
+> Para AdmonFondos-Api usar su propia configuracion (`app.admonfondos-api.*` / `ADMONFONDOS_API_*`).
 
 ### Flujo de autenticacion (Keycloak PKCE)
 
@@ -235,7 +266,8 @@ Configurar `AUTH_BYPASS=true` en `.env` para saltar la verificacion JWT.
 | `DB_USERNAME` | Usuario de BD |
 | `DB_PASSWORD` | Password de BD |
 | `AUTH_BYPASS` | `true` para deshabilitar auth (solo desarrollo) |
-| `EXTERNAL_API_BASE_URL` | API externa de integracion |
+| `EXTERNAL_API_BASE_URL` | API externa de integracion (AdmonFiducia) |
+| `ADMONFONDOS_API_BASE_URL` | URL base de AdmonFondos-Api (solo backend). Pruebas: `http://192.168.2.10:8098/admonfondos/api/v1` |
 | `NEFFI_LAFT_URL` | URL del sistema LAFT externo |
 
 ---
@@ -248,6 +280,7 @@ Configurar `AUTH_BYPASS=true` en `.env` para saltar la verificacion JWT.
 - **Custom hooks**: logica reutilizable encapsulada en hooks (`useAuth`, `useMobile`, etc.)
 - **Validacion con Zod**: todos los formularios validan con schemas Zod
 - **No usar axios directamente**: siempre usar el wrapper de `queryClient.ts`
+- **Solo backend propio**: el front consume unicamente `/api/*` de Neffi-Fond, nunca AdmonFondos-Api ni otros APIs externos
 - **Componentes UI**: usar los de `shared/ui/` (Shadcn/Radix), no crear componentes de UI desde cero
 
 ### Backend
@@ -257,6 +290,7 @@ Configurar `AUTH_BYPASS=true` en `.env` para saltar la verificacion JWT.
 - **Usar `BaseApiResponse`**: todas las respuestas deben usar el wrapper estandar
 - **Excepciones custom**: lanzar excepciones especificas, el `GlobalExceptionHandler` las maneja
 - **Busqueda normalizada**: remover tildes y caracteres especiales antes de buscar
+- **Integraciones externas en servicios**: las llamadas a AdmonFondos-Api se hacen en `service/`, mapeando a DTOs propios
 
 ### General
 

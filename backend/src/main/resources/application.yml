@@ -55,6 +55,14 @@ admon-fiducia:
     key-header: ${ADMON_FIDUCIA_API_KEY_HEADER:}
     key-value: ${ADMON_FIDUCIA_API_KEY_VALUE:}
     dev-test: ${ADMON_FIDUCIA_API_DEV_TEST:false}
+
+admonfondos:
+  api:
+    base-url: ${ADMONFONDOS_API_BASE_URL:http://192.168.2.10:8098/admonfondos/api/v1}
+    timeout-ms: ${ADMONFONDOS_API_TIMEOUT_MS:30000}
+    # Solo para desarrollo con AUTH_BYPASS=true, cuando no hay JWT real de Keycloak
+    dev-token: ${ADMONFONDOS_API_DEV_TOKEN:}
+
 logging:
   level:
     com.neffi: DEBUG

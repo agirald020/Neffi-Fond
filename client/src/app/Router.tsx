@@ -5,6 +5,7 @@ import Layout from "@/shared/components/Layout";
 import HomePage from "@/features/homePage/HomePage";
 import FindNamePage from "@/features/findName.tsx/FindNamePage";
 import NewNamePage from "@/features/newName/NewNamePage";
+import TransaccionesInternasPage from "@/features/transaccionesInternas/TransaccionesInternasPage";
 
 const Router: React.FC = () => {
   return (
@@ -14,6 +15,7 @@ const Router: React.FC = () => {
           <Route path="/" component={HomePage} />
           <Route path="/buscar-fideicomiso" component={FindNamePage} />
           <Route path="/crear-nombre-fideicomiso" component={NewNamePage} />
+          <Route path="/parametrizacion/transacciones-internas" component={TransaccionesInternasPage} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>

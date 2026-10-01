@@ -3,7 +3,49 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
 import { hasPermission } from "@/shared/lib/permissions";
-import { menuItems } from "./menuItems";
+import { isMenuSection, menuItems, type MenuLink } from "./menuItems";
+
+const isVisible = (item: MenuLink) => !item.permission || hasPermission(item.permission);
+
+interface SidebarLinkProps {
+  item: MenuLink;
+  location: string;
+  collapsed: boolean;
+}
+
+function SidebarLink({ item, location, collapsed }: SidebarLinkProps) {
+  const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+  return (
+    <Link href={item.href}>
+      <div
+        className={cn(
+          "flex items-center rounded-xl cursor-pointer transition-all duration-200 group",
+          collapsed ? "justify-center px-2 py-3" : "px-3 py-2.5 space-x-3",
+          isActive
+            ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 font-semibold shadow-sm"
+            : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
+        )}
+        title={collapsed ? item.label : undefined}
+        data-testid={`link-sidebar-${item.href.replace("/", "") || "home"}`}
+      >
+        <item.icon
+          className={cn(
+            "w-5 h-5 shrink-0",
+            isActive
+              ? "text-red-600 dark:text-red-400"
+              : "text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300"
+          )}
+        />
+        {!collapsed && (
+          <span className="text-sm truncate">{item.label}</span>
+        )}
+        {isActive && !collapsed && (
+          <div className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500"></div>
+        )}
+      </div>
+    </Link>
+  );
+}
 
 export default function Sidebar() {
   const [location] = useLocation();
@@ -28,38 +70,31 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-4 space-y-1 px-2">
-        {menuItems
-          .filter((item) => !item.permission || hasPermission(item.permission))
-          .map((item) => {
-          const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+        {menuItems.map((entry) => {
+          if (!isMenuSection(entry)) {
+            return isVisible(entry) ? (
+              <SidebarLink key={entry.href} item={entry} location={location} collapsed={collapsed} />
+            ) : null;
+          }
+
+          const visibleItems = entry.items.filter(isVisible);
+          if (visibleItems.length === 0) return null;
+
           return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={cn(
-                  "flex items-center rounded-xl cursor-pointer transition-all duration-200 group",
-                  collapsed ? "justify-center px-2 py-3" : "px-3 py-2.5 space-x-3",
-                  isActive
-                    ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 font-semibold shadow-sm"
-                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
-                )}
-                data-testid={`link-sidebar-${item.href.replace("/", "") || "home"}`}
-              >
-                <item.icon
-                  className={cn(
-                    "w-5 h-5 shrink-0",
-                    isActive
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300"
-                  )}
-                />
-                {!collapsed && (
-                  <span className="text-sm truncate">{item.label}</span>
-                )}
-                {isActive && !collapsed && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500"></div>
-                )}
+            <div key={entry.section} className="pt-3" role="group" aria-label={entry.section}>
+              {collapsed ? (
+                <div className="mx-2 mb-2 border-t border-gray-100 dark:border-gray-800" aria-hidden="true" />
+              ) : (
+                <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  {entry.section}
+                </p>
+              )}
+              <div className="space-y-1">
+                {visibleItems.map((item) => (
+                  <SidebarLink key={item.href} item={item} location={location} collapsed={collapsed} />
+                ))}
               </div>
-            </Link>
+            </div>
           );
         })}
       </nav>

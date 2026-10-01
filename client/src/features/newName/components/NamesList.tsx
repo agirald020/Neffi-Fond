@@ -228,7 +228,7 @@ const NamesList: React.FC = () => {
             </p>
           </div>
           <AppButton
-            permKey="trust:BtnExportarExcelNombresFideicomiso"
+            permKey="fond:BtnExportarExcelNombresFideicomiso"
             noPermBehavior="disable"
             variant="outline"
             size="sm"
@@ -480,7 +480,7 @@ const NamesList: React.FC = () => {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <AppButton
-                                    permKey="trust:BtnCopiarNombreFideicomiso"
+                                    permKey="fond:BtnCopiarNombreFideicomiso"
                                     noPermBehavior="disable"
                                     size="icon"
                                     variant="ghost"
@@ -512,7 +512,7 @@ const NamesList: React.FC = () => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <AppButton
-                                      permKey="trust:BtnAsignarNombreFideicomiso"
+                                      permKey="fond:BtnAsignarNombreFideicomiso"
                                       noPermBehavior="disable"
                                       size="icon"
                                       variant="ghost"
@@ -531,7 +531,7 @@ const NamesList: React.FC = () => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <AppButton
-                                      permKey="trust:BtnEditarNombreFideicomiso"
+                                      permKey="fond:BtnEditarNombreFideicomiso"
                                       noPermBehavior="disable"
                                       size="icon"
                                       variant="ghost"
@@ -550,7 +550,7 @@ const NamesList: React.FC = () => {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <AppButton
-                                      permKey="trust:BtnAnularNombreFideicomiso"
+                                      permKey="fond:BtnAnularNombreFideicomiso"
                                       noPermBehavior="disable"
                                       size="icon"
                                       variant="ghost"

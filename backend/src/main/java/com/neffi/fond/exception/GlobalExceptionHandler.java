@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.neffi.fond.dto.BaseApiResponse;
 import com.neffi.fond.exception.custom.ExcelExportException;
@@ -41,6 +42,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<BaseApiResponse<String>> handleExcelExport(ExcelExportException ex) {
         log.error("Error en exportación de Excel: {}", ex.getMessage(), ex);
         return ResponseEntity.status(500).body(BaseApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<BaseApiResponse<String>> handleResponseStatus(ResponseStatusException ex) {
+        log.warn("Error de integración/negocio: {}", ex.getMessage());
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(BaseApiResponse.error(String.valueOf(ex.getStatusCode().value()), ex.getReason()));
     }
 
     @ExceptionHandler(Exception.class)

@@ -473,7 +473,7 @@ const NewNameForm: React.FC = () => {
             )}
 
             <AppButton
-              permKey="trust:BtnCrearNombreFideicomiso"
+              permKey="fond:BtnCrearNombreFideicomiso"
               noPermBehavior="disable"
               type="submit"
               className="w-full btn-gradient-primary"
@@ -590,7 +590,7 @@ const NewNameForm: React.FC = () => {
 
             {/* BOTÓN COPIAR */}
             <AppButton
-              permKey="trust:BtnCopiarNombreFideicomiso"
+              permKey="fond:BtnCopiarNombreFideicomiso"
               noPermBehavior="disable"
               className="w-full btn-gradient-primary gap-2"
               onClick={() =>

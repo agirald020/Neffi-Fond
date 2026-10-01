@@ -17,6 +17,6 @@ export const AppsItems: AppItem[] = [
     icon: Shield,
     color: "text-gray-700",
     bg: "bg-gray-100",
-    permission: "trust:NeffiLaft",
+    permission: "fond:NeffiLaft",
   },
 ];
